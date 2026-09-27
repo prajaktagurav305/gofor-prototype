@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GoFor — Autonomous Agent Prototype</title>
+<style>
+  :root{
+    --bg:#0D0B1F; --card:#161329; --card2:#1E1A3C; --border:#2A2450;
+    --primary:#6C63FF; --primary-d:#4A42C4; --accent:#00F5A0; --accent2:#FF6B4A;
+    --text:#F5F3FF; --muted:#AFA9D6; --muted2:#7A76A8;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#0D0B1F; --card:#161329; --card2:#1E1A3C; --border:#2A2450;
+      --text:#F5F3FF; --muted:#AFA9D6; --muted2:#7A76A8;
+    }
+  }
+  html{ scroll-padding-top:env(safe-area-inset-top,0px); }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:Calibri, 'Segoe UI', Arial, sans-serif;
+    min-height:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:1280px; margin:0 auto; padding:28px 24px 60px; }
+  header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:8px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .mark{
+    width:36px; height:36px; border-radius:10px; background:var(--primary);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .brand .mark svg{ width:20px; height:20px; }
+  .brand .name{ font-weight:700; font-size:20px; letter-spacing:0.3px; }
+  .brand .tag{ color:var(--muted2); font-size:12px; }
+  .badge{
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase; font-weight:700;
+    color:var(--accent); border:1px solid rgba(0,245,160,0.35); background:rgba(0,245,160,0.08);
+    padding:6px 12px; border-radius:100px;
+  }
+  h1{ font-size:clamp(26px,4vw,38px); margin:22px 0 8px; line-height:1.15; }
+  .sub{ color:var(--muted); font-size:15px; max-width:640px; line-height:1.5; margin-bottom:26px; }
+
+  .grid{ display:grid; grid-template-columns:300px 1fr 320px; gap:20px; align-items:start; }
+  @media (max-width:980px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel{ background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; }
+  .panel h2{ font-size:12px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted2); margin:0 0 14px; font-weight:700; }
+
+  textarea{
+    width:100%; min-height:84px; resize:vertical; background:var(--card2); border:1px solid var(--border);
+    border-radius:10px; color:var(--text); font-family:inherit; font-size:14px; padding:12px; line-height:1.4;
+  }
+  textarea:focus{ outline:none; border-color:var(--primary); }
+
+  .chips{ display:flex; flex-direction:column; gap:8px; margin:14px 0; }
+  .chip{
+    text-align:left; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:10px; font-size:13px; cursor:pointer; font-family:inherit;
+    display:flex; align-items:center; gap:9px; transition:border-color .15s, background .15s;
+  }
+  .chip:hover{ border-color:var(--primary); background:#221E44; }
+  .chip .dot{ width:7px; height:7px; border-radius:50%; background:var(--muted2); flex-shrink:0; }
+
+  .run-btn{
+    width:100%; margin-top:6px; background:var(--primary); color:#fff; border:none; border-radius:10px;
+    padding:13px; font-size:14.5px; font-weight:700; cursor:pointer; font-family:inherit;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .run-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .run-btn:not(:disabled):hover{ background:#5b52e8; }
+  .reset-btn{
+    width:100%; margin-top:8px; background:transparent; color:var(--muted); border:1px solid var(--border);
+    border-radius:10px; padding:10px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  .reset-btn:hover{ border-color:var(--muted2); color:var(--text); }
+
+  /* Phone */
+  .phone-col{ display:flex; flex-direction:column; align-items:center; }
+  .phone{
+    width:290px; height:580px; background:#050414; border-radius:34px; border:8px solid #050414;
+    box-shadow:0 0 0 2px #2A2450, 0 30px 60px rgba(0,0,0,0.5);
+    position:relative; overflow:hidden; flex-shrink:0;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:22px;
+    background:#050414; border-radius:0 0 14px 14px; z-index:20;
+  }
+  .status-bar{
+    position:absolute; top:0; left:0; right:0; height:34px; display:flex; align-items:center;
+    justify-content:space-between; padding:0 18px; font-size:11px; color:#fff; z-index:15; font-weight:600;
+  }
+  .screen-stack{ position:absolute; inset:0; }
+  .screen{
+    position:absolute; inset:0; padding-top:40px; background:#100C26;
+    opacity:0; transform:translateX(14px); transition:opacity .35s ease, transform .35s ease; pointer-events:none;
+  }
+  .screen.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+  .app-topbar{ padding:10px 16px 14px; }
+  .app-topbar .app-name{ font-size:15px; font-weight:700; color:#fff; }
+  .app-topbar .app-sub{ font-size:11px; color:var(--muted2); margin-top:2px; }
+  .card-row{
+    margin:0 14px 10px; background:#181433; border:1px solid #2A2450; border-radius:12px; padding:12px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .card-row .ic{
+    width:32px; height:32px; border-radius:9px; background:var(--primary); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .card-row .txt .t1{ font-size:12.5px; color:#fff; font-weight:600; }
+  .card-row .txt .t2{ font-size:10.5px; color:var(--muted2); margin-top:1px; }
+  .pill-btn{
+    display:inline-block; background:var(--primary); color:#fff; font-size:11.5px; font-weight:700;
+    padding:8px 14px; border-radius:8px; border:none; font-family:inherit;
+  }
+  .pill-btn.ghost{ background:transparent; border:1px solid var(--border); color:var(--muted); }
+  .pill-btn.accent{ background:var(--accent); color:#04140F; }
+  .slot-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:4px 14px; }
+  .slot{ background:#181433; border:1px solid #2A2450; border-radius:8px; padding:10px 4px; text-align:center; font-size:11px; color:var(--muted); }
+  .slot.picked{ background:var(--primary); border-color:var(--primary); color:#fff; font-weight:700; }
+  .center-msg{ text-align:center; padding:30px 24px 0; }
+  .check-circle{
+    width:64px; height:64px; border-radius:50%; background:rgba(0,245,160,0.15); border:2px solid var(--accent);
+    display:flex; align-items:center; justify-content:center; margin:10px auto 16px; font-size:28px; color:var(--accent);
+  }
+  .approve-box{
+    margin:16px 14px; background:#181433; border:1px solid var(--accent2); border-radius:12px; padding:14px;
+  }
+  .approve-box .q{ font-size:13px; color:#fff; font-weight:600; margin-bottom:10px; }
+  .approve-row{ display:flex; gap:8px; }
+  .approve-row button{ flex:1; padding:9px; border-radius:8px; font-size:12px; font-weight:700; border:none; font-family:inherit; cursor:pointer; }
+  .approve-row .yes{ background:var(--accent); color:#04140F; }
+  .approve-row .no{ background:transparent; border:1px solid var(--border); color:var(--muted); }
+
+  .tap-ripple{
+    position:absolute; width:34px; height:34px; border-radius:50%; border:2px solid var(--accent);
+    transform:translate(-50%,-50%) scale(0.4); opacity:0; pointer-events:none; z-index:25;
+  }
+  .tap-ripple.show{ animation:tapPulse .7s ease-out; }
+  @keyframes tapPulse{
+    0%{ opacity:0; transform:translate(-50%,-50%) scale(0.3); }
+    30%{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+    100%{ opacity:0; transform:translate(-50%,-50%) scale(1.5); }
+  }
+  .idle-hint{ text-align:center; color:var(--muted2); font-size:12.5px; padding:0 30px; margin-top:14px; line-height:1.5; }
+
+  /* Log panel */
+  .timer{ font-family:Consolas, monospace; font-size:22px; font-weight:700; color:var(--accent); margin-bottom:4px; }
+  .timer-label{ font-size:11px; color:var(--muted2); margin-bottom:16px; }
+  .phases{ display:flex; gap:6px; margin-bottom:16px; }
+  .phase-pill{
+    flex:1; text-align:center; font-size:10px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase;
+    padding:7px 2px; border-radius:8px; background:var(--card2); color:var(--muted2); border:1px solid var(--border);
+  }
+  .phase-pill.active{ background:var(--primary); color:#fff; border-color:var(--primary); }
+  .phase-pill.done{ background:rgba(0,245,160,0.12); color:var(--accent); border-color:rgba(0,245,160,0.4); }
+
+  .log-list{ display:flex; flex-direction:column; gap:10px; max-height:360px; overflow-y:auto; }
+  .log-item{ display:flex; gap:9px; opacity:0; transform:translateY(6px); animation:logIn .35s ease forwards; }
+  @keyframes logIn{ to{ opacity:1; transform:translateY(0); } }
+  .log-item .ldot{ width:8px; height:8px; border-radius:50%; margin-top:5px; flex-shrink:0; background:var(--primary); }
+  .log-item.act .ldot{ background:var(--accent); }
+  .log-item.verify .ldot{ background:var(--accent); }
+  .log-item .ltxt{ font-size:12.5px; color:var(--muted); line-height:1.4; }
+  .log-item .ltxt b{ color:var(--text); }
+  .log-empty{ color:var(--muted2); font-size:12.5px; line-height:1.5; }
+
+  .done-banner{
+    margin-top:16px; background:rgba(0,245,160,0.1); border:1px solid rgba(0,245,160,0.35); border-radius:10px;
+    padding:12px; font-size:12.5px; color:var(--accent); font-weight:600; display:none;
+  }
+  footer{ margin-top:36px; text-align:center; color:var(--muted2); font-size:11.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+      </div>
+      <div>
+        <div class="name">GoFor</div>
+        <div class="tag">Autonomous agent prototype</div>
+      </div>
+    </div>
+    <div class="badge">BFWAI / HACK 26 · Problem 01</div>
+  </header>
+
+  <h1>Give it a goal. Watch it get done.</h1>
+  <p class="sub">This is a simulated walkthrough of how GoFor operates real apps on your behalf — type a goal, or pick one below, and watch the agent understand, perceive, act, and verify in real time.</p>
+
+  <div class="grid">
+    <!-- LEFT: controls -->
+    <div class="panel">
+      <h2>Your Goal</h2>
+      <textarea id="goalInput" placeholder="e.g. Book my dentist appointment for Tuesday at 6pm"></textarea>
+      <div class="chips" id="chips"></div>
+      <button class="run-btn" id="runBtn">▶ Run GoFor</button>
+      <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+
+    <!-- CENTER: phone -->
+    <div class="panel phone-col">
+      <div class="phone" id="phone">
+        <div class="notch"></div>
+        <div class="status-bar"><span>9:41</span><span>●●●● 5G 100%</span></div>
+        <div class="screen-stack" id="screenStack"></div>
+        <div class="tap-ripple" id="ripple"></div>
+      </div>
+      <div class="idle-hint" id="idleHint">The agent will operate this simulated phone screen for you — no input needed once it starts.</div>
+    </div>
+
+    <!-- RIGHT: agent log -->
+    <div class="panel">
+      <h2>Agent Activity</h2>
+      <div class="timer" id="timer">0.0s</div>
+      <div class="timer-label" id="timerLabel">idle</div>
+      <div class="phases">
+        <div class="phase-pill" data-phase="understand">Understand</div>
+        <div class="phase-pill" data-phase="perceive">Perceive</div>
+        <div class="phase-pill" data-phase="act">Act</div>
+        <div class="phase-pill" data-phase="verify">Verify</div>
+      </div>
+      <div class="log-list" id="logList">
+        <div class="log-empty">Waiting for a goal — the agent's step-by-step reasoning and actions will appear here as it runs.</div>
+      </div>
+      <div class="done-banner" id="doneBanner">✓ Goal completed — see summary on screen.</div>
+    </div>
+  </div>
+
+  <footer>Simulated prototype for demo purposes — screens and timings illustrate the real GoFor architecture (Understand → Perceive → Act → Verify) described in the pitch deck.</footer>
+</div>
+
+<script>
+(function(){
+  const goalInput = document.getElementById('goalInput');
+  const chipsEl = document.getElementById('chips');
+  const runBtn = document.getElementById('runBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const screenStack = document.getElementById('screenStack');
+  const ripple = document.getElementById('ripple');
+  const idleHint = document.getElementById('idleHint');
+  const timerEl = document.getElementById('timer');
+  const timerLabel = document.getElementById('timerLabel');
+  const logList = document.getElementById('logList');
+  const doneBanner = document.getElementById('doneBanner');
+  const phasePills = document.querySelectorAll('.phase-pill');
+
+  let running = false, timerInterval = null, startTime = 0;
+
+  // ---------- Screen templates ----------
+  function screenHTML(scn, id){
+    const T = {
+      booking_home: `
+        <div class="app-topbar"><div class="app-name">CarePlus Clinic</div><div class="app-sub">Your upcoming appointments</div></div>
+        <div class="card-row"><div class="ic">🦷</div><div class="txt"><div class="t1">Dr. Rao — Dental Checkup</div><div class="t2">Today, 4:00 PM</div></div></div>
+        <div class="card-row" id="target-reschedule"><div class="ic">↻</div><div class="txt"><div class="t1">Reschedule this visit</div><div class="t2">Tap to change date &amp; time</div></div></div>`,
+      booking_calendar: `
+        <div class="app-topbar"><div class="app-name">Reschedule Visit</div><div class="app-sub">Dr. Rao — Dental Checkup</div></div>
+        <div class="card-row"><div class="ic">📅</div><div class="txt"><div class="t1">Tuesday, selected</div><div class="t2">Choose a time slot below</div></div></div>
+        <div class="slot-grid">
+          <div class="slot">2:00 PM</div><div class="slot">4:30 PM</div><div class="slot picked" id="target-slot">6:00 PM</div>
+        </div>`,
+      booking_confirm: `
+        <div class="app-topbar"><div class="app-name">Confirm Reschedule</div><div class="app-sub">Review before confirming</div></div>
+        <div class="card-row"><div class="ic">🦷</div><div class="txt"><div class="t1">Dr. Rao — Dental Checkup</div><div class="t2">Tue, 6:00 PM</div></div></div>
+        <div style="margin:16px 14px;"><button class="pill-btn" id="target-confirm" style="width:100%;padding:12px;">Confirm Reschedule</button></div>`,
+      booking_success: `
+        <div class="center-msg">
+          <div class="check-circle">✓</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;">Appointment rescheduled</div>
+          <div style="font-size:12px;color:var(--muted2);margin-top:6px;">Dr. Rao — Tuesday, 6:00 PM. A reminder has been added to your calendar.</div>
+        </div>`,
+
+      pay_home: `
+        <div class="app-topbar"><div class="app-name">PayHub</div><div class="app-sub">Bills &amp; recharges</div></div>
+        <div class="card-row"><div class="ic">💡</div><div class="txt"><div class="t1">Electricity — BESCOM</div><div class="t2">Due in 3 days</div></div></div>
+        <div class="card-row" id="target-electricity"><div class="ic">→</div><div class="txt"><div class="t1">View &amp; pay bill</div><div class="t2">Tap to open this bill</div></div></div>`,
+      pay_details: `
+        <div class="app-topbar"><div class="app-name">Electricity Bill</div><div class="app-sub">BESCOM · Account •• 4471</div></div>
+        <div class="card-row"><div class="ic">₹</div><div class="txt"><div class="t1">Amount due</div><div class="t2">₹1,240.00</div></div></div>
+        <div style="margin:16px 14px;"><button class="pill-btn" id="target-paynow" style="width:100%;padding:12px;">Pay Now</button></div>`,
+      pay_approve: `
+        <div class="app-topbar"><div class="app-name">Confirm Payment</div><div class="app-sub">This step needs your OK</div></div>
+        <div class="card-row"><div class="ic">₹</div><div class="txt"><div class="t1">Pay BESCOM</div><div class="t2">₹1,240.00 from HDFC •• 2210</div></div></div>
+        <div class="approve-box">
+          <div class="q">GoFor is pausing here — approve this payment?</div>
+          <div class="approve-row"><button class="yes" id="approveYes">Approve</button><button class="no" id="approveNo">Cancel</button></div>
+        </div>`,
+      pay_success: `
+        <div class="center-msg">
+          <div class="check-circle">✓</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;">Bill paid</div>
+          <div style="font-size:12px;color:var(--muted2);margin-top:6px;">₹1,240.00 paid to BESCOM. Receipt saved to your PayHub wallet.</div>
+        </div>`,
+
+      grocery_home: `
+        <div class="app-topbar"><div class="app-name">QuickCart</div><div class="app-sub">Delivered in 10 minutes</div></div>
+        <div class="card-row"><div class="ic">🥛</div><div class="txt"><div class="t1">Milk, 1L</div><div class="t2">Added from your usual list</div></div></div>
+        <div class="card-row"><div class="ic">🍞</div><div class="txt"><div class="t1">Bread, whole wheat</div><div class="t2">Added from your usual list</div></div></div>
+        <div class="card-row" id="target-cart"><div class="ic">🛒</div><div class="txt"><div class="t1">View cart (5 items)</div><div class="t2">Tap to review &amp; checkout</div></div></div>`,
+      grocery_cart: `
+        <div class="app-topbar"><div class="app-name">Your Cart</div><div class="app-sub">5 items · ₹612</div></div>
+        <div class="card-row"><div class="ic">🥚</div><div class="txt"><div class="t1">Eggs, 12 pack</div><div class="t2">₹96</div></div></div>
+        <div class="card-row"><div class="ic">🥦</div><div class="txt"><div class="t1">Mixed vegetables</div><div class="t2">₹180</div></div></div>
+        <div style="margin:16px 14px;"><button class="pill-btn" id="target-checkout" style="width:100%;padding:12px;">Checkout — ₹612</button></div>`,
+      grocery_success: `
+        <div class="center-msg">
+          <div class="check-circle">✓</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;">Order placed</div>
+          <div style="font-size:12px;color:var(--muted2);margin-top:6px;">5 items · ₹612 · arriving in ~10 minutes to your saved address.</div>
+        </div>`,
+
+      generic_home: `
+        <div class="app-topbar"><div class="app-name">Scanning your apps</div><div class="app-sub">Looking for the right one for this goal</div></div>
+        <div class="card-row"><div class="ic">🔎</div><div class="txt"><div class="t1">Matching goal to an app</div><div class="t2">"${scn.goalText}"</div></div></div>
+        <div class="card-row" id="target-open"><div class="ic">→</div><div class="txt"><div class="t1">Opening best match</div><div class="t2">Tap to continue</div></div></div>`,
+      generic_act: `
+        <div class="app-topbar"><div class="app-name">Working on it</div><div class="app-sub">Reading the screen and filling in details</div></div>
+        <div class="card-row"><div class="ic">⌨️</div><div class="txt"><div class="t1">Filling in the required fields</div><div class="t2">Based on your saved details</div></div></div>
+        <div style="margin:16px 14px;"><button class="pill-btn" id="target-continue" style="width:100%;padding:12px;">Continue</button></div>`,
+      generic_success: `
+        <div class="center-msg">
+          <div class="check-circle">✓</div>
+          <div style="font-size:15px;font-weight:700;color:#fff;">Goal completed</div>
+          <div style="font-size:12px;color:var(--muted2);margin-top:6px;">"${scn.goalText}" — done. GoFor will show a summary here in the full app.</div>
+        </div>`,
+    };
+    return T[id] || '';
+  }
+
+  // ---------- Scenarios ----------
+  function scenarios(goalText){
+    return {
+      booking: {
+        goalText, appName:'CarePlus Clinic',
+        steps:[
+          {phase:'understand', log:'Parsed goal → reschedule dental appointment to <b>Tuesday, 6:00 PM</b>.', duration:1000},
+          {phase:'perceive', log:'Opened <b>CarePlus Clinic</b> and read the appointments list.', screen:'booking_home', duration:1100},
+          {phase:'act', log:'Tapped <b>Reschedule</b> on Dr. Rao\'s appointment.', screen:'booking_home', tap:'target-reschedule', duration:1000},
+          {phase:'act', log:'Selected Tuesday and the <b>6:00 PM</b> slot.', screen:'booking_calendar', tap:'target-slot', duration:1100},
+          {phase:'act', log:'Reviewed details and tapped <b>Confirm Reschedule</b>.', screen:'booking_confirm', tap:'target-confirm', duration:1100},
+          {phase:'verify', log:'Verified the change matches your calendar — no conflicts.', screen:'booking_success', duration:900},
+        ]
+      },
+      pay: {
+        goalText, appName:'PayHub',
+        steps:[
+          {phase:'understand', log:'Parsed goal → pay this month\'s <b>electricity bill</b>.', duration:1000},
+          {phase:'perceive', log:'Opened <b>PayHub</b> and located the BESCOM bill.', screen:'pay_home', duration:1100},
+          {phase:'act', log:'Opened the bill — amount due <b>₹1,240.00</b>.', screen:'pay_home', tap:'target-electricity', duration:1000},
+          {phase:'act', log:'Tapped <b>Pay Now</b> to start the payment.', screen:'pay_details', tap:'target-paynow', duration:1000},
+          {phase:'verify', log:'Payment is above the auto-approve limit — pausing for your OK.', screen:'pay_approve', duration:700, waitApprove:true},
+          {phase:'verify', log:'You approved the payment — completing it now.', screen:'pay_success', duration:1000},
+        ]
+      },
+      grocery: {
+        goalText, appName:'QuickCart',
+        steps:[
+          {phase:'understand', log:'Parsed goal → order this week\'s <b>groceries</b> from your usual list.', duration:1000},
+          {phase:'perceive', log:'Opened <b>QuickCart</b> and loaded your saved list.', screen:'grocery_home', duration:1100},
+          {phase:'act', log:'Added milk, bread, eggs and vegetables to the cart.', screen:'grocery_home', tap:'target-cart', duration:1100},
+          {phase:'act', log:'Reviewed the cart — 5 items, ₹612.', screen:'grocery_cart', duration:900},
+          {phase:'act', log:'Confirmed your saved address and tapped <b>Checkout</b>.', screen:'grocery_cart', tap:'target-checkout', duration:1100},
+          {phase:'verify', log:'Order confirmed — arriving in ~10 minutes.', screen:'grocery_success', duration:900},
+        ]
+      },
+      generic: {
+        goalText, appName:'',
+        steps:[
+          {phase:'understand', log:`Parsed goal → "<b>${escapeHTML(goalText)}</b>".`, duration:1000},
+          {phase:'perceive', log:'Scanning installed apps for the best match.', screen:'generic_home', duration:1200},
+          {phase:'act', log:'Opened the matching app.', screen:'generic_home', tap:'target-open', duration:1100},
+          {phase:'act', log:'Reading the screen and filling in the required fields.', screen:'generic_act', tap:'target-continue', duration:1200},
+          {phase:'verify', log:'Double-checked the result against your goal.', screen:'generic_success', duration:900},
+        ]
+      }
+    };
+  }
+
+  function escapeHTML(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function pickScenario(text){
+    const t = text.toLowerCase();
+    if(/dentist|appointment|clinic|doctor|reschedul|book.*(slot|visit)/.test(t)) return 'booking';
+    if(/bill|electricity|pay|recharge|bescom/.test(t)) return 'pay';
+    if(/grocer|order|milk|vegetable|cart/.test(t)) return 'grocery';
+    return 'generic';
+  }
+
+  // ---------- Example chips ----------
+  const examples = [
+    'Book my dentist appointment for Tuesday at 6pm',
+    "Pay this month's electricity bill",
+    'Order groceries for the week',
+  ];
+  examples.forEach(ex => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.innerHTML = `<span class="dot"></span><span>${ex}</span>`;
+    b.addEventListener('click', () => { goalInput.value = ex; });
+    chipsEl.appendChild(b);
+  });
+
+  // ---------- Screen rendering ----------
+  const renderedScreens = {};
+  function ensureScreen(scn, id){
+    if(!screenStack.querySelector('[data-screen="'+id+'"]')){
+      const div = document.createElement('div');
+      div.className = 'screen';
+      div.setAttribute('data-screen', id);
+      div.innerHTML = screenHTML(scn, id);
+      screenStack.appendChild(div);
+    }
+    return screenStack.querySelector('[data-screen="'+id+'"]');
+  }
+  function showScreen(scn, id){
+    screenStack.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = ensureScreen(scn, id);
+    // force reflow for transition
+    void el.offsetWidth;
+    el.classList.add('active');
+    return el;
+  }
+  function tapOn(screenEl, targetId){
+    return new Promise(resolve => {
+      requestAnimationFrame(() => {
+        const target = screenEl.querySelector('#' + targetId);
+        if(!target){ resolve(); return; }
+        const tRect = target.getBoundingClientRect();
+        const pRect = document.getElementById('phone').getBoundingClientRect();
+        ripple.style.left = (tRect.left - pRect.left + tRect.width/2) + 'px';
+        ripple.style.top = (tRect.top - pRect.top + tRect.height/2) + 'px';
+        ripple.classList.remove('show'); void ripple.offsetWidth; ripple.classList.add('show');
+        setTimeout(resolve, 350);
+      });
+    });
+  }
+
+  function setPhase(active, doneList){
+    phasePills.forEach(p => {
+      const ph = p.getAttribute('data-phase');
+      p.classList.toggle('active', ph === active);
+      p.classList.toggle('done', doneList.includes(ph) && ph !== active);
+    });
+  }
+
+  function addLog(phase, html){
+    const empty = logList.querySelector('.log-empty');
+    if(empty) empty.remove();
+    const item = document.createElement('div');
+    item.className = 'log-item ' + phase;
+    item.innerHTML = `<div class="ldot"></div><div class="ltxt">${html}</div>`;
+    logList.appendChild(item);
+    logList.scrollTop = logList.scrollHeight;
+  }
+
+  function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  function startTimer(){
+    startTime = Date.now();
+    timerLabel.textContent = 'running…';
+    timerInterval = setInterval(() => {
+      timerEl.textContent = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+    }, 100);
+  }
+  function stopTimer(label){
+    clearInterval(timerInterval);
+    timerLabel.textContent = label || 'done';
+  }
+
+  async function runScenario(key, goalText){
+    running = true;
+    runBtn.disabled = true; runBtn.textContent = 'Running…';
+    idleHint.style.display = 'none';
+    doneBanner.style.display = 'none';
+    logList.innerHTML = '';
+    screenStack.innerHTML = '';
+    ripple.classList.remove('show');
+    startTimer();
+
+    const scn = scenarios(goalText)[key];
+    const doneList = [];
+    let currentScreenEl = null;
+
+    for(const step of scn.steps){
+      setPhase(step.phase, doneList);
+      if(!doneList.includes(step.phase)) {} // keep order flexible
+      addLog(step.phase, step.log);
+
+      if(step.screen){
+        currentScreenEl = showScreen(scn, step.screen);
+        await wait(250);
+      }
+      if(step.tap && currentScreenEl){
+        await tapOn(currentScreenEl, step.tap);
+      }
+      if(step.waitApprove){
+        stopTimer('waiting for you…');
+        await waitForApproval(currentScreenEl);
+        startTimer();
+      }
+      await wait(step.duration);
+      if(!doneList.includes(step.phase)) doneList.push(step.phase);
+    }
+
+    setPhase(null, ['understand','perceive','act','verify']);
+    stopTimer('completed in ' + ((Date.now()-startTime)/1000).toFixed(1) + 's');
+    doneBanner.style.display = 'block';
+    running = false;
+    runBtn.disabled = false; runBtn.textContent = '▶ Run GoFor';
+  }
+
+  function waitForApproval(screenEl){
+    return new Promise(resolve => {
+      const yes = screenEl.querySelector('#approveYes');
+      const no = screenEl.querySelector('#approveNo');
+      function done(){ if(yes) yes.removeEventListener('click', done); if(no) no.removeEventListener('click', done); resolve(); }
+      if(yes) yes.addEventListener('click', done);
+      if(no) no.addEventListener('click', done);
+    });
+  }
+
+  runBtn.addEventListener('click', () => {
+    if(running) return;
+    const text = goalInput.value.trim();
+    if(!text){ goalInput.focus(); goalInput.style.borderColor = 'var(--accent2)'; setTimeout(()=>goalInput.style.borderColor='var(--border)', 900); return; }
+    const key = pickScenario(text);
+    runScenario(key, text);
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if(running) return;
+    goalInput.value = '';
+    screenStack.innerHTML = '';
+    logList.innerHTML = '<div class="log-empty">Waiting for a goal — the agent\'s step-by-step reasoning and actions will appear here as it runs.</div>';
+    timerEl.textContent = '0.0s';
+    timerLabel.textContent = 'idle';
+    doneBanner.style.display = 'none';
+    idleHint.style.display = 'block';
+    setPhase(null, []);
+  });
+})();
+</script>
+</body>
+</html>
